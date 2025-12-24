@@ -213,9 +213,9 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="p-4 text-center text-slate-500 text-[10px] md:text-xs border-t border-slate-800 bg-slate-900/50 flex-shrink-0 z-10">
-        <p className="mb-1 font-medium opacity-80 uppercase tracking-widest">&copy; Noam Gold AI 2025</p>
+        <p className="mb-1 font-medium opacity-80 uppercase tracking-widest">(C) Noam Gold AI 2025</p>
         <p className="flex items-center justify-center gap-1">
-          Send Feedback: <a href="mailto:goldnoamai@gmail.com" className="text-rose-400 hover:underline font-semibold hover:text-rose-300 transition-colors">goldnoamai@gmail.com</a>
+          Send Feedback: <a href="mailto:goldnoamai@gmail.com" className="text-rose-400 hover:underline font-semibold hover:text-rose-300 transition-colors">"goldnoamai@gmail.com"</a>
         </p>
       </footer>
     </div>
