@@ -17,7 +17,7 @@ const App: React.FC = () => {
   const [throwSpin, setThrowSpin] = useState(0);
   const [powerUpCharge, setPowerUpCharge] = useState(0);
   
-  // Customization
+  // Customization State
   const [ballSize, setBallSize] = useState<BallSize>(BallSize.NORMAL);
   const [ballColor, setBallColor] = useState<string>('#f43f5e');
   
@@ -66,6 +66,7 @@ const App: React.FC = () => {
   const handleGameStateUpdate = (update: any) => {
     setGameState(prev => ({ ...prev, ...update }));
     
+    // Charge power-up bar based on events
     if (update.event) {
       if (update.event === 'STRIKE') {
         setPowerUpCharge(prev => Math.min(100, prev + 40));
@@ -92,7 +93,7 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-500 overflow-hidden ${theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
       
-      {/* Header */}
+      {/* Header with Navigation and Mode Controls */}
       <header className="p-4 flex justify-between items-center bg-opacity-30 backdrop-blur-md sticky top-0 z-50 border-b border-slate-700/30">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center shadow-lg shadow-rose-500/50 transform hover:rotate-12 transition-transform cursor-pointer">
@@ -107,22 +108,22 @@ const App: React.FC = () => {
             <button onClick={() => { setGameMode(GameMode.MULTIPLAYER); resetGame(); }} className={`p-2 rounded-lg transition-all ${gameMode === GameMode.MULTIPLAYER ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30' : 'hover:bg-slate-700 text-slate-400'}`} title="2 Player Local"><Users size={18}/></button>
             <button onClick={() => { setGameMode(GameMode.VS_COMPUTER); resetGame(); }} className={`p-2 rounded-lg transition-all ${gameMode === GameMode.VS_COMPUTER ? 'bg-rose-500 text-white shadow-md shadow-rose-500/30' : 'hover:bg-slate-700 text-slate-400'}`} title="Vs Computer"><Cpu size={18}/></button>
           </div>
-          <button onClick={toggleMusic} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50">
+          <button onClick={toggleMusic} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50" title="Toggle Music">
             {isMusicOn ? <Volume2 size={18} className="text-cyan-400" /> : <VolumeX size={18} className="text-slate-400" />}
           </button>
-          <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50">
+          <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50" title="Toggle Theme">
             {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-indigo-400" />}
           </button>
-          <button onClick={togglePause} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50">
+          <button onClick={togglePause} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50" title="Pause Game">
             {isPaused ? <Play size={18} className="text-green-400" /> : <Pause size={18} className="text-yellow-400" />}
           </button>
-          <button onClick={resetGame} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50">
+          <button onClick={resetGame} className="p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-700 transition-colors border border-slate-700/50" title="Restart Game">
             <RotateCcw size={18} className="text-rose-400" />
           </button>
         </div>
       </header>
 
-      {/* Main Game Container */}
+      {/* Main Game Interface */}
       <main className="flex-grow flex flex-col items-center justify-start p-4 gap-4 max-w-4xl mx-auto w-full overflow-y-auto scrollbar-hide">
         <HUD 
           score={gameState.score} 
@@ -140,6 +141,7 @@ const App: React.FC = () => {
           onActivatePowerUp={activatePowerUp}
         />
         
+        {/* Responsive Lane Container */}
         <div className="relative w-full max-w-[450px] aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-800 bg-slate-800 ring-8 ring-slate-800/20 flex-shrink-0">
           <BowlingGame 
             key={resetKey}
@@ -153,6 +155,7 @@ const App: React.FC = () => {
             customBallColor={ballColor}
           />
           
+          {/* Pause Overlay */}
           {isPaused && (
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-10">
               <div className="text-center p-8 bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl transform transition-all scale-110">
@@ -175,6 +178,7 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {/* Game Over Screen */}
           {gameState.isGameOver && (
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10 pointer-events-none">
               <div className="text-center p-12 animate-in fade-in zoom-in duration-500">
@@ -196,6 +200,7 @@ const App: React.FC = () => {
           )}
         </div>
 
+        {/* Variety and Game Control Panel */}
         <Controls 
           onPause={togglePause} 
           onReset={resetGame} 
@@ -211,11 +216,11 @@ const App: React.FC = () => {
         />
       </main>
 
-      {/* Footer */}
+      {/* Footer Branded as Requested */}
       <footer className="p-4 text-center text-slate-500 text-[10px] md:text-xs border-t border-slate-800 bg-slate-900/50 flex-shrink-0 z-10">
         <p className="mb-1 font-medium opacity-80 uppercase tracking-widest">(C) Noam Gold AI 2025</p>
         <p className="flex items-center justify-center gap-1">
-          Send Feedback: <a href="mailto:goldnoamai@gmail.com" className="text-rose-400 hover:underline font-semibold hover:text-rose-300 transition-colors">"goldnoamai@gmail.com"</a>
+          Send Feedback: <a href="mailto:goldnoamai@gmail.com" className="text-rose-400 hover:underline font-semibold hover:text-rose-300 transition-colors">goldnoamai@gmail.com</a>
         </p>
       </footer>
     </div>
