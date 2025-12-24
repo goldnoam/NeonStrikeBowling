@@ -1,0 +1,26 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-900 text-slate-100 overflow-hidden font-inter;
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+input[type=range] {
+  @apply h-1.5 rounded-lg appearance-none cursor-pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  @apply appearance-none w-4 h-4 rounded-full bg-white shadow-lg border-2 border-slate-700;
+}

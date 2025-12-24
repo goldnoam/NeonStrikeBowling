@@ -8,7 +8,14 @@ export enum PowerUpType {
 export enum GameMode {
   SINGLE = 'SINGLE',
   MULTIPLAYER = 'MULTIPLAYER',
-  VS_AI = 'VS_AI',
+  VS_COMPUTER = 'VS_COMPUTER',
+}
+
+export enum BallSize {
+  SMALL = 0.7,
+  NORMAL = 1.0,
+  BIG = 1.4,
+  HUGE = 2.0,
 }
 
 export interface Vector2D {
@@ -41,4 +48,5 @@ export interface Ball extends GameObject {
   curve: number;
   type: PowerUpType | null;
   trail: Vector2D[];
+  color?: string;
 }

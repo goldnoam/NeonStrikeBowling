@@ -12,7 +12,7 @@ import {
   MAX_FRAMES,
   POWERUP_DURATION
 } from '../constants';
-import { Pin, Ball, PowerUpType, Vector2D, FrameResult, GameMode } from '../types';
+import { Pin, Ball, PowerUpType, Vector2D, FrameResult, GameMode, BallSize } from '../types';
 import { soundManager } from './SoundManager';
 
 interface BowlingGameProps {
@@ -22,6 +22,8 @@ interface BowlingGameProps {
   onGameStateUpdate: (state: any) => void;
   power: number;
   spin: number;
+  ballSizeMultiplier: BallSize;
+  customBallColor: string;
 }
 
 interface Confetti {
@@ -32,12 +34,20 @@ interface Confetti {
   life: number;
 }
 
-const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, onGameStateUpdate, power, spin }) => {
+const BowlingGame: React.FC<BowlingGameProps> = ({ 
+  theme, 
+  isPaused, 
+  gameMode, 
+  onGameStateUpdate, 
+  power, 
+  spin,
+  ballSizeMultiplier,
+  customBallColor
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameId = useRef<number>();
   
   const [currentFrame, setCurrentFrame] = useState(1);
-  const [throwsInFrame, setThrowsInFrame] = useState(0);
   const [activePowerUp, setActivePowerUp] = useState<PowerUpType | null>(null);
   const [powerUpTimer, setPowerUpTimer] = useState(0);
   const [notification, setNotification] = useState<string | null>(null);
@@ -51,10 +61,16 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
   const BALL_START_Y = CANVAS_HEIGHT - 120;
   const PIN_START_Y = 180;
 
+  const getEffectiveRadius = useCallback(() => {
+    let r = BALL_RADIUS * ballSizeMultiplier;
+    if (activePowerUp === PowerUpType.GIANT_BALL) r *= 1.8;
+    return r;
+  }, [ballSizeMultiplier, activePowerUp]);
+
   const ballRef = useRef<Ball>({
     pos: { x: CANVAS_WIDTH / 2, y: BALL_START_Y },
     vel: { x: 0, y: 0 },
-    radius: BALL_RADIUS,
+    radius: BALL_RADIUS * ballSizeMultiplier,
     active: false,
     power: 0,
     curve: 0,
@@ -137,21 +153,20 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       activePowerUp,
       powerUpDuration: powerUpTimer,
       currentPlayer,
-      showNotification: notification || undefined,
       isGameOver
     });
   }, [currentFrame, activePowerUp, powerUpTimer, notification, currentPlayer, onGameStateUpdate, isGameOver]);
 
   const spawnConfetti = useCallback((isFullVictory = false) => {
     const colors = ['#f43f5e', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa'];
-    const amount = isFullVictory ? 150 : 60;
+    const amount = isFullVictory ? 250 : 80;
     for (let i = 0; i < amount; i++) {
       confettiRef.current.push({
         pos: isFullVictory ? { x: Math.random() * CANVAS_WIDTH, y: -20 } : { x: (Math.random() * 200) + (CANVAS_WIDTH / 2 - 100), y: PIN_START_Y + 50 },
-        vel: { x: (Math.random() - 0.5) * 8, y: isFullVictory ? (Math.random() * 8 + 4) : -(Math.random() * 12 + 5) },
+        vel: { x: (Math.random() - 0.5) * 12, y: isFullVictory ? (Math.random() * 10 + 5) : -(Math.random() * 14 + 6) },
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: Math.random() * 8 + 4,
-        life: 1.0 + Math.random()
+        size: Math.random() * 10 + 5,
+        life: 1.5 + Math.random()
       });
     }
   }, []);
@@ -162,53 +177,35 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
     isAiming.current = false;
     isRolling.current = true;
     
-    let baseVel = 10 + (power / 100) * 15;
-    
-    // Explicit Spin from control prop + implicit spin from position
+    let baseVel = 10 + (power / 100) * 16;
     const fromCenter = (mouseX.current - CANVAS_WIDTH / 2);
-    let curve = (fromCenter / 20) + (spin / 50 * 5); // Combine pos and slider
+    let curve = (fromCenter / 20) + (spin / 50 * 5); 
 
     const ball = ballRef.current;
     ball.active = true;
     ball.type = activePowerUp;
     ball.trail = [];
     
-    if (activePowerUp === PowerUpType.FIRE_BALL) baseVel *= 1.35;
-    ball.radius = activePowerUp === PowerUpType.GIANT_BALL ? BALL_RADIUS * 1.8 : BALL_RADIUS;
+    if (activePowerUp === PowerUpType.FIRE_BALL) baseVel *= 1.4;
+    ball.radius = getEffectiveRadius();
     
-    ball.vel = { x: curve * 0.4, y: -baseVel };
+    ball.vel = { x: curve * 0.45, y: -baseVel };
     ball.curve = curve; 
     ball.pos = { x: mouseX.current, y: BALL_START_Y };
-  }, [activePowerUp, isPaused, isGameOver, power, spin]);
+  }, [activePowerUp, isPaused, isGameOver, power, spin, getEffectiveRadius]);
 
   useEffect(() => {
-    if (gameMode === GameMode.VS_AI && currentPlayer === 2 && isAiming.current && !isPaused && !isAITurn.current && !isGameOver) {
+    if (gameMode === GameMode.VS_COMPUTER && currentPlayer === 2 && isAiming.current && !isPaused && !isAITurn.current && !isGameOver) {
       isAITurn.current = true;
       setTimeout(() => {
-        mouseX.current = (CANVAS_WIDTH / 2) + (Math.random() - 0.5) * 120;
+        mouseX.current = (CANVAS_WIDTH / 2) + (Math.random() - 0.5) * 130;
         setTimeout(() => {
           throwBall();
           isAITurn.current = false;
-        }, 800);
+        }, 1000);
       }, 1000);
     }
   }, [currentPlayer, isAiming.current, gameMode, isPaused, throwBall, isGameOver]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isPaused || !isAiming.current || (gameMode === GameMode.VS_AI && currentPlayer === 2) || isGameOver) return;
-      const key = e.key.toLowerCase();
-      if (key === 'a' || e.key === 'ArrowLeft') {
-        mouseX.current = Math.max(LANE_X_MIN + (ballRef.current.radius || BALL_RADIUS), mouseX.current - 14);
-      } else if (key === 'd' || e.key === 'ArrowRight') {
-        mouseX.current = Math.min(LANE_X_MAX - (ballRef.current.radius || BALL_RADIUS), mouseX.current + 14);
-      } else if (key === ' ' || key === 'Enter') {
-        throwBall();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPaused, throwBall, currentPlayer, gameMode, isGameOver]);
 
   const handleFrameLogic = (knockedThisThrow: number) => {
     const history = currentPlayer === 1 ? p1History.current : p2History.current;
@@ -229,19 +226,14 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       frameObj.isSpare = isSpare;
     }
 
-    // Report results for charging
-    if (isStrike) {
-      onGameStateUpdate({ event: 'STRIKE' });
-    } else if (isSpare) {
-      onGameStateUpdate({ event: 'SPARE' });
-    } else {
-      onGameStateUpdate({ event: 'PIN_HIT', count: knockedThisThrow });
-    }
+    if (isStrike) onGameStateUpdate({ event: 'STRIKE' });
+    else if (isSpare) onGameStateUpdate({ event: 'SPARE' });
+    else onGameStateUpdate({ event: 'PIN_HIT', count: knockedThisThrow });
 
     if (isStrike) { 
         setNotification("STRIKE!"); 
         soundManager.playPowerUp(); 
-        spawnConfetti(); 
+        spawnConfetti(false); 
     } else if (isSpare) {
         setNotification("SPARE!");
     } else if (knockedThisThrow === 0) {
@@ -274,12 +266,10 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
             spawnConfetti(true);
           } else { setCurrentFrame(f => f + 1); }
         }
-        setThrowsInFrame(0);
         initPins();
         resetBall();
       }, 1500);
     } else {
-      setThrowsInFrame(frameObj.throws.length);
       setTimeout(() => {
         if ((knockedThisThrow === 10 || isSpare) && currentFrame === 10) {
           initPins();
@@ -289,11 +279,6 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
         pinsAtStartOfThrow.current = pinsRef.current.length;
         resetBall();
       }, 1500);
-    }
-
-    // Power-up duration update
-    if (activePowerUp) {
-      // Power-up stays active for the specific duration frames tracked in update()
     }
   };
 
@@ -323,7 +308,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
         soundManager.playHit();
         const angle = Math.atan2(dy, dx);
         const speed = Math.sqrt(ball.vel.x * ball.vel.x + ball.vel.y * ball.vel.y);
-        const force = ball.type === PowerUpType.FIRE_BALL ? 5 : 1.7;
+        const force = ball.type === PowerUpType.FIRE_BALL ? 5 : 1.8;
         pin.vel.x = -Math.cos(angle) * speed * force;
         pin.vel.y = -Math.sin(angle) * speed * force;
         pin.knocked = true;
@@ -332,16 +317,16 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
            pinsRef.current.forEach(p => {
              if (!p.active || p.knocked) return;
              const d = Math.sqrt(Math.pow(pin.pos.x - p.pos.x, 2) + Math.pow(pin.pos.y - p.pos.y, 2));
-             if (d < 170) {
+             if (d < 180) {
                p.knocked = true;
                const a = Math.atan2(p.pos.y - pin.pos.y, p.pos.x - pin.pos.x);
-               p.vel.x = Math.cos(a) * 12;
-               p.vel.y = Math.sin(a) * 12;
+               p.vel.x = Math.cos(a) * 15;
+               p.vel.y = Math.sin(a) * 15;
              }
            });
         }
-        ball.vel.x *= ball.type === PowerUpType.GIANT_BALL ? 0.99 : 0.8;
-        ball.vel.y *= ball.type === PowerUpType.GIANT_BALL ? 0.99 : 0.8;
+        ball.vel.x *= ball.type === PowerUpType.GIANT_BALL ? 0.99 : 0.85;
+        ball.vel.y *= ball.type === PowerUpType.GIANT_BALL ? 0.99 : 0.85;
       }
     });
 
@@ -355,7 +340,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < p1.radius + p2.radius) {
           const angle = Math.atan2(dy, dx);
-          const f = 1.1;
+          const f = 1.2;
           p1.vel.x += Math.cos(angle) * f;
           p1.vel.y += Math.sin(angle) * f;
           p2.vel.x -= Math.cos(angle) * f;
@@ -374,7 +359,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       c.pos.x += c.vel.x;
       c.pos.y += c.vel.y;
       c.vel.y += 0.15;
-      c.life -= 0.008;
+      c.life -= 0.01;
     });
     confettiRef.current = confettiRef.current.filter(c => c.life > 0);
 
@@ -390,14 +375,17 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
     }
 
     const ball = ballRef.current;
-    if (isAiming.current) ball.pos.x = mouseX.current;
+    if (isAiming.current) {
+        ball.pos.x = mouseX.current;
+        ball.radius = getEffectiveRadius();
+    }
 
     if (ball.active) {
       const speed = Math.sqrt(ball.vel.x * ball.vel.x + ball.vel.y * ball.vel.y);
-      if (Math.random() > 0.1 || ball.trail.length < 5) {
+      if (Math.random() > 0.05) {
         ball.trail.push({ ...ball.pos });
       }
-      if (ball.trail.length > 25) ball.trail.shift();
+      if (ball.trail.length > 35) ball.trail.shift();
 
       const lanePositionFactor = (BALL_START_Y - ball.pos.y) / BALL_START_Y;
       const hookStrength = ball.curve * 0.15 * lanePositionFactor;
@@ -409,7 +397,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       ball.vel.y *= FRICTION;
 
       if (activePowerUp === PowerUpType.SUPER_CURVE) {
-        ball.vel.x += (mouseX.current - ball.pos.x) * 0.1;
+        ball.vel.x += (mouseX.current - ball.pos.x) * 0.15;
       }
 
       if (ball.pos.y < -80 || (speed < 0.1 && ball.pos.y < PIN_START_Y + 200)) {
@@ -423,7 +411,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       pin.pos.y += pin.vel.y;
       pin.vel.x *= PIN_FRICTION;
       pin.vel.y *= PIN_FRICTION;
-      if (pin.knocked) pin.angle += (Math.abs(pin.vel.x) + Math.abs(pin.vel.y)) * 0.1;
+      if (pin.knocked) pin.angle += (Math.abs(pin.vel.x) + Math.abs(pin.vel.y)) * 0.12;
       if (pin.pos.y < -150 || pin.pos.y > CANVAS_HEIGHT + 150 || pin.pos.x < -150 || pin.pos.x > CANVAS_WIDTH + 150) {
         pin.active = false;
       }
@@ -444,7 +432,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
     ballRef.current = {
       pos: { x: mouseX.current, y: BALL_START_Y },
       vel: { x: 0, y: 0 },
-      radius: activePowerUp === PowerUpType.GIANT_BALL ? BALL_RADIUS * 1.8 : BALL_RADIUS,
+      radius: getEffectiveRadius(),
       active: false,
       power: 0,
       curve: 0,
@@ -468,38 +456,50 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       ctx.beginPath(); ctx.setLineDash([5, 8]); ctx.lineWidth = 2;
       ctx.strokeStyle = theme === 'dark' ? 'rgba(244, 63, 94, 0.4)' : 'rgba(14, 165, 233, 0.5)';
       
-      let tx = mouseX.current, ty = BALL_START_Y, tvx = ((mouseX.current - CANVAS_WIDTH / 2) / 20 * 0.4) + (spin / 50 * 5 * 0.4), tvy = -(10 + (power/100)*15);
+      let tx = mouseX.current, ty = BALL_START_Y, tvx = ((mouseX.current - CANVAS_WIDTH / 2) / 20 * 0.45) + (spin / 50 * 5 * 0.45), tvy = -(10 + (power/100)*16);
       let tc = (mouseX.current - CANVAS_WIDTH / 2) / 20 + (spin / 50 * 5);
       ctx.moveTo(tx, ty);
       for (let i = 0; i < 45; i++) {
         const lp = (BALL_START_Y - ty) / BALL_START_Y;
         tvx -= tc * 0.15 * lp;
         tx += tvx; ty += tvy; tvx *= FRICTION; tvy *= FRICTION;
-        if (activePowerUp === PowerUpType.SUPER_CURVE) tx += (mouseX.current - tx) * 0.1;
+        if (activePowerUp === PowerUpType.SUPER_CURVE) tx += (mouseX.current - tx) * 0.15;
         ctx.lineTo(tx, ty);
         if (ty < 0) break;
       }
       ctx.stroke(); ctx.restore();
+
+      ctx.save();
+      ctx.translate(mouseX.current, BALL_START_Y);
+      ctx.rotate((spin / 100) * Math.PI);
+      ctx.strokeStyle = '#22d3ee';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, ballRef.current.radius + 6, -0.6, 0.6);
+      ctx.stroke();
+      ctx.restore();
     }
 
     const ball = ballRef.current;
     if (ball.active && ball.trail.length > 0) {
-      const speed = Math.sqrt(ball.vel.x ** 2 + ball.vel.y ** 2);
       ball.trail.forEach((p, i) => {
         const factor = i / ball.trail.length;
-        const jitterX = (Math.random() - 0.5) * (activePowerUp === PowerUpType.FIRE_BALL ? 15 : 4) * (1 - factor);
-        const jitterY = (Math.random() - 0.5) * (activePowerUp === PowerUpType.FIRE_BALL ? 15 : 4) * (1 - factor);
-        
         ctx.beginPath();
-        if (activePowerUp === PowerUpType.FIRE_BALL) {
-          const emberColor = i % 3 === 0 ? '#f97316' : (i % 3 === 1 ? '#fbbf24' : '#ef4444');
+        if (ball.type === PowerUpType.FIRE_BALL) {
+          const emberColor = i % 2 === 0 ? '#f97316' : '#ef4444';
           ctx.fillStyle = emberColor;
           ctx.globalAlpha = factor * 0.8;
-          const radiusScale = (0.3 + Math.random() * 0.7) * ball.radius * (0.5 + factor * 0.5);
-          ctx.arc(p.x + jitterX, p.y + jitterY, radiusScale, 0, Math.PI * 2);
+          ctx.arc(p.x + (Math.random()-0.5)*15, p.y + (Math.random()-0.5)*15, ball.radius * (0.6 + factor * 0.5), 0, Math.PI * 2);
+        } else if (ball.type === PowerUpType.GIANT_BALL) {
+          ctx.fillStyle = `rgba(139, 92, 246, ${factor * 0.2})`;
+          ctx.arc(p.x, p.y, ball.radius * (0.8 + factor * 0.4), 0, Math.PI * 2);
+        } else if (ball.type === PowerUpType.SUPER_CURVE) {
+          ctx.fillStyle = `rgba(34, 211, 238, ${factor * 0.4})`;
+          ctx.arc(p.x + (Math.random()-0.5)*10, p.y + (Math.random()-0.5)*10, ball.radius * 0.3 * factor, 0, Math.PI * 2);
         } else {
-          ctx.fillStyle = theme === 'dark' ? `rgba(244, 63, 94, ${factor * 0.3 * (speed / 15)})` : `rgba(14, 165, 233, ${factor * 0.3 * (speed / 15)})`;
-          ctx.arc(p.x + jitterX, p.y + jitterY, ball.radius * factor, 0, Math.PI * 2);
+          ctx.fillStyle = customBallColor;
+          ctx.globalAlpha = factor * 0.3;
+          ctx.arc(p.x, p.y, ball.radius * factor, 0, Math.PI * 2);
         }
         ctx.fill();
         ctx.globalAlpha = 1.0;
@@ -511,7 +511,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
       ctx.save();
       ctx.translate(pin.pos.x, pin.pos.y);
       ctx.rotate(pin.angle);
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath(); ctx.ellipse(0, pin.radius, pin.radius, pin.radius/3, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath(); ctx.arc(0, 0, pin.radius, 0, Math.PI * 2); ctx.fill();
@@ -521,19 +521,19 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
 
     if ((ball.active || isAiming.current) && !isGameOver) {
       ctx.save();
-      const scale = activePowerUp === PowerUpType.GIANT_BALL ? 1 + Math.sin(Date.now() / 150) * 0.08 : 1;
+      const scale = ball.type === PowerUpType.GIANT_BALL ? 1 + Math.sin(Date.now() / 100) * 0.1 : 1;
       ctx.translate(ball.pos.x, ball.pos.y);
       ctx.scale(scale, scale);
       
-      let color = '#e11d48';
-      if (activePowerUp === PowerUpType.FIRE_BALL) color = '#f97316';
-      else if (activePowerUp === PowerUpType.GIANT_BALL) color = '#8b5cf6';
-      else if (activePowerUp === PowerUpType.SUPER_CURVE) color = '#06b6d4';
+      let color = customBallColor || '#e11d48';
+      if (ball.type === PowerUpType.FIRE_BALL) color = '#f97316';
+      else if (ball.type === PowerUpType.GIANT_BALL) color = '#8b5cf6';
+      else if (ball.type === PowerUpType.SUPER_CURVE) color = '#06b6d4';
       
-      if (activePowerUp === PowerUpType.FIRE_BALL) { 
+      if (ball.type === PowerUpType.FIRE_BALL) { 
         ctx.shadowBlur = 40; 
         ctx.shadowColor = '#f97316';
-        const flicker = Math.sin(Date.now() / 50) * 2;
+        const flicker = Math.sin(Date.now() / 40) * 3;
         ctx.fillStyle = '#fef3c7';
         ctx.beginPath(); ctx.arc(0, 0, ball.radius * 0.6 + flicker, 0, Math.PI * 2); ctx.fill();
       }
@@ -559,7 +559,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
 
     if (notification) {
       ctx.save(); ctx.font = 'bold 72px Orbitron'; ctx.fillStyle = '#f43f5e'; ctx.textAlign = 'center';
-      ctx.shadowBlur = 25; ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 30; ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.fillText(notification, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2);
       ctx.restore();
     }
@@ -573,7 +573,7 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
     update();
     draw(ctx);
     frameId.current = requestAnimationFrame(loop);
-  }, [isPaused, theme, activePowerUp, powerUpTimer, notification, currentFrame, currentPlayer, isGameOver, power, spin]);
+  }, [isPaused, theme, activePowerUp, powerUpTimer, notification, currentFrame, currentPlayer, isGameOver, power, spin, customBallColor, getEffectiveRadius]);
 
   useEffect(() => {
     frameId.current = requestAnimationFrame(loop);
@@ -581,12 +581,12 @@ const BowlingGame: React.FC<BowlingGameProps> = ({ theme, isPaused, gameMode, on
   }, [loop]);
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (isPaused || (gameMode === GameMode.VS_AI && currentPlayer === 2) || isGameOver) return;
+    if (isPaused || (gameMode === GameMode.VS_COMPUTER && currentPlayer === 2) || isGameOver) return;
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const x = e.clientX - rect.left;
     const scaleX = CANVAS_WIDTH / rect.width;
-    mouseX.current = Math.min(Math.max(x * scaleX, LANE_X_MIN + (ballRef.current.radius || BALL_RADIUS)), LANE_X_MAX - (ballRef.current.radius || BALL_RADIUS));
+    mouseX.current = Math.min(Math.max(x * scaleX, LANE_X_MIN + getEffectiveRadius()), LANE_X_MAX - getEffectiveRadius());
   };
 
   return (
